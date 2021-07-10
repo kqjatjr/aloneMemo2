@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css"
+    integrity="sha384-B0vP5xmATw1+K9KRQjQERJvTumQW0nPEzvF6L/Z6nronJ3oUOFUFpCjEUQouq2+l"
+    crossorigin="anonymous"
+  />
+  <script
+    src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
+    integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+    crossorigin="anonymous"
+  ></script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-Piv4xVNRyMGpqkS2by6br4gNJ7DXjqk09RmUpJ8jgGtD7zP9yug3goQfGII0yAns"
+    crossorigin="anonymous"
+  ></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Sunflower:wght@300;500;700&display=swap"
+    rel="stylesheet"
+  />
+  <head>
+    <title>나홀로 메모장</title>
+    <style>
+      body {
+        font-family: "Sunflower", sans-serif;
+      }
+      ul {
+        list-style-type: none;
+        padding: 0;
+      }
+      .contentWraper {
+        width: 1200px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .myMemo_form {
+        width: 500px;
+      }
+      .myMemo_form-field {
+        margin-bottom: 12px;
+      }
+      .myMemo_card-button {
+        font-size: 10px;
+        padding: 3px 6px;
+      }
+    </style>
+    <script>
+      class MyMemoList {
+        constructor() {
+          this.memos = [];
+        }
+        initialize() {
+          this.$list = document.querySelector("#myMemoList");
+          this.$form = document.querySelector("#myMemoForm");
+          this.setEvent();
+          return this.getMemos();
+        }
+
+        setEvent() {
+          this.$form.addEventListener("submit", this.handleSubmitMemo);
+          this.$list.addEventListener("click", this.handleClickList);
+          this.$list.addEventListener("submit", this.handleEditMemo);
+        }
+
+        handleClickList = ({ target }) => {
+          if (target.classList.contains("myMemo_card-button-delete")) {
+            this.handleClickBtnDelete(target);
+          }
+          if (target.classList.contains("myMemo_card-button-edit")) {
+            this.handleClickBtnEdit(target);
+          }
+        };
+
+        handleClickBtnDelete = (target) => {
+          const buttonId = target.getAttribute("data-id");
+          return fetch(`/api/myMemo/${buttonId}`, { method: "DELETE" })
+            .then((response) => response.json())
+            .then(({ success }) => {
+              if (success) {
+                this.getMemos();
+                alert("삭제 완료!");
+              }
+            });
+        };
+
+        handleClickBtnEdit = (target) => {
+          const buttonId = target.getAttribute("data-id");
+          const $card = target.closest(".card");
+          const memoItem = this.memos.find((memo) => memo._id === buttonId);
+          $card.innerHTML = `
+                  <form class="form-post card-body" data-id="${memoItem._id}">
+                    <input
+                      class="form_title form-control myMemo_form-field"
+                      name="title"
+                      type="text"
+                      placeholder="제목을 입력하세요"
+                      value="${memoItem.title}"
+                    />
+                    <textarea
+                      class="form_memo form-control myMemo_form-field"
+                      name="memo"
+                      type="text"
+                      placeholder="메모를 입력하세요"
+                    >${memoItem.memo}</textarea>
+                    <button
+                      class="btn btn-primary myMemo_card-button myMemo_card_edit_save"
+                      type="submit"
+                    >
+                      저장
+                    </button>
+                  </form>
+                  `;
+        };
+
+        getFormValues = ($form) => {
+          const $title = $form.querySelector(".form_title");
+          const title = $title.value;
+          if (!title.length) {
+            return alert("제목을 입력해 주세요");
+          }
+          const $memo = $form.querySelector(".form_memo");
+          const memo = $memo.value;
+          if (!memo.length) {
+            return alert("메모를 입력해 주세요");
+          }
+          $memo.value = "";
+          $title.value = "";
+          return { title, memo };
+        };
+
+        handleEditMemo = (event) => {
+          event.preventDefault();
+          const id = event.target.getAttribute("data-id");
+          const data = this.getFormValues(event.target);
+          if (!data) {
+            return;
+          }
+          return fetch(`/api/myMemo/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+          })
+            .then((response) => response.json())
+            .then(({ success }) => {
+              if (success) {
+                this.getMemo(id);
+                alert("수정 완료!");
+              }
+            });
+        };
+
+        handleSubmitMemo = (event) => {
+          event.preventDefault();
+          const data = this.getFormValues(event.target);
+          if (!data) {
+            return;
+          }
+          return fetch("/api/myMemo", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+          })
+            .then((response) => response.json())
+            .then(({ success }) => {
+              if (success) {
+                this.getMemos();
+                alert("저장 완료!");
+              }
+            });
+        };
+
+        setMemos(memos) {
+          this.memos = memos;
+          this.renderMemos();
+        }
+
+        getMemo(id) {
+          return fetch(`/api/myMemo/${id}`, { method: "GET" })
+            .then((response) => response.json())
+            .then(({ memo }) => {
+              const $target = this.$list.querySelector(`#memo-${id}`);
+              $target.innerHTML = this.getMemoHtml(memo);
+              this.memos = this.memos.map((m) => {
+                if (m.id === id) {
+                  return memo;
+                }
+                return m;
+              });
+            });
+        }
+
+        getMemos() {
+          return fetch("/api/myMemo/list", { method: "GET" })
+            .then((response) => response.json())
+            .then(({ memos }) => this.setMemos(memos));
+        }
+
+        getMemoHtml = ({ _id, title, memo }) => `
+                <div class="card-body">
+                  <h5 class="card-title">${title}</h5>
+                  <p class="card-text">${memo}</p>
+                  <button type="button" class="btn btn-secondary myMemo_card-button myMemo_card-button-edit" data-id="${_id}">
+                    수정
+                  </button>
+                  <button type="button" class="btn btn-dark myMemo_card-button myMemo_card-button-delete" data-id="${_id}">
+                    삭제
+                  </button>
+                </div>
+                `;
+
+        renderMemos() {
+          this.$list.innerHTML = this.memos
+            .map(
+              (memo) =>
+                `<li id="memo-${memo._id}" class="card">${this.getMemoHtml(
+                  memo,
+                )}</li>`,
+            )
+            .join("");
+        }
+      }
+
+      const myMemoList = new MyMemoList();
+
+      window.onload = function () {
+        myMemoList.initialize();
+      };
+    </script>
+  </head>
+
+  <body>
+    <div class="contentWraper">
+      <div class="jumbotron">
+        <h1 class="display-4">
+          나홀로 메모장 <span class="badge badge-secondary">ver.2</span>
+        </h1>
+        <form id="myMemoForm" class="form-post myMemo_form">
+          <input
+            class="form_title form-control myMemo_form-field"
+            name="title"
+            type="text"
+            placeholder="제목을 입력하세요"
+          />
+          <textarea
+            class="form_memo form-control myMemo_form-field"
+            name="memo"
+            type="text"
+            placeholder="메모를 입력하세요"
+          ></textarea>
+          <button class="btn btn-primary" type="submit">저장하기</button>
+        </form>
+      </div>
+      <ul id="myMemoList" class="card-columns">
+        <li class="card"></li>
+      </ul>
+    </div>
+  </body>
+</html>
