@@ -186,7 +186,7 @@
               const $target = this.$list.querySelector(`#memo-${id}`);
               $target.innerHTML = this.getMemoHtml(memo);
               this.memos = this.memos.map((m) => {
-                if (m.id === id) {
+                if (m._id === id) {
                   return memo;
                 }
                 return m;
